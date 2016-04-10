@@ -1,0 +1,5 @@
+game_server: <your game server ip or dns>
+aws:
+  #aws_access_key_id: <access key>
+  #aws_secret_access_key: <secret key>
+  #profile_name: <profile>

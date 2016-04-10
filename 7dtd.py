@@ -9,24 +9,32 @@ logging.basicConfig(level=logging.INFO)
 class Server(object):
   def __init__(self):
     stream = file('config.yaml', 'r')
-    self.cfg = yaml.load(stream) 
+    self.cfg = yaml.load(stream)
 
     name_tag = '7dtd'
     filters = {"tag:Name": name_tag}
 
+    if not self.cfg['aws']:
+      logging.error("No AWS config found in config.yaml")
+      raise SystemExit
+    aws_config_options = {}
+    aws_config_options.update(**self.cfg['aws'])
     try:
       self.conn = boto.ec2.connect_to_region(
         "us-west-2",
-        profile_name=self.cfg['profile_name']
+        **aws_config_options
       )
-    except boto.provider.ProfileNotFoundError as e:
+    except boto.provider.ProfileNotFoundError:
       logging.error("AWS profile not found")
       self.help()
       raise SystemExit
 
-    reservations = self.conn.get_all_reservations(filters=filters)
+
     try:
+      reservations = self.conn.get_all_reservations(filters=filters)
       self.instance_id = reservations[0].instances[0].id
+    except boto.exception.EC2ResponseError as e:
+      raise SystemExit
     except Exception:
       logging.fatal(
           "no instance found in AWS EC2 with a name tag: {0}".format(name_tag))
@@ -75,8 +83,12 @@ class Server(object):
             "EVERYTHING IS OKAY. Server is running and game service is online")
 
 @click.command()
-@click.argument('operation', nargs=1, type=click.Choice(['start', 'stop', 'status']))
+@click.argument('operation', nargs=1, type=click.Choice(
+  ['start', 'stop', 'status']
+  ))
 def main(operation):
+  ''' Start/Stop 7 Days to Die game server
+  '''
   server = Server()
   op = getattr(server, operation)
   op()
