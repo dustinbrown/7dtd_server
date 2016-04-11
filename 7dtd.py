@@ -3,6 +3,7 @@ import logging
 import requests
 import click
 import yaml
+import time
 
 logging.basicConfig(level=logging.INFO)
 
@@ -41,10 +42,28 @@ class Server(object):
       raise SystemExit
 
   def start(self):
-    self.conn.start_instances(instance_ids=[self.instance_id])
+    try:
+      self.conn.start_instances(instance_ids=[self.instance_id])
+    except boto.exception.EC2ResponseError as e:
+      logging.warn("Server is not ready to be started. waiting 10 seconds and trying again.")
+      time.sleep(10)
+      self.start()
     logging.info("Starting server")
 
   def stop(self):
+    stop_uri = 'http://{0}:5000/stop'.format(self.cfg['game_server']['host'])
+
+    username = self.cfg['game_server']['stop_username']
+    password = self.cfg['game_server']['stop_password']
+    if self.is_game_running():
+      try:
+        r = requests.get(stop_uri, auth=(username, password))
+      except requests.ConnectionError as e:
+        if 'Connection refused' in  e.message[1]:
+          logging.error('The rest service is not running on {0}'.format(
+            self.cfg['game_server']['host']))
+          raise SystemExit
+
     self.conn.stop_instances(instance_ids=[self.instance_id])
     logging.info("Stopping server")
 
@@ -56,7 +75,7 @@ class Server(object):
         Surely there is a better way to do this
     '''
     try:
-      r = requests.get('http://{0}:26900'.format(self.cfg['game_server']))
+      r = requests.get('http://{0}:26900'.format(self.cfg['game_server']['host']))
     except requests.ConnectionError as e:
       if 'Connection refused' in  e.message[1]:
         return False
