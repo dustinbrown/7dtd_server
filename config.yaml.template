@@ -1,4 +1,7 @@
-game_server: <your game server ip or dns>
+game_server:
+  host: <your game server ip or dns>
+  stop_username: <secret>
+  stop_password: <secret>
 aws:
   #aws_access_key_id: <access key>
   #aws_secret_access_key: <secret key>
